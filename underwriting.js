@@ -28,10 +28,21 @@ function reviewV(a) {
     })
     .join('')}</table></div>
 ${a.status === 'Exception' ? `<label for="rm">Remarks (kept with the application)</label><textarea id="rm" rows="2">${esc(a.remarks || '')}</textarea><button class="btn gold" onclick="resolveEx('${a.id}')">Confirm driver records</button><button class="btn line" onclick="correctEx('${a.id}')">Correct to LTO data</button><button class="btn line" onclick="rejectEx('${a.id}')">Reject driver records</button>` : ''}${a.remarks ? `<p class="muted">Remarks: ${esc(a.remarks)}</p>` : ''}
-<h3>Documents</h3>${reqDocs(q)
+<h3>Documents <span class="muted">(${reqDocs(q).filter(([k]) => a.docs[k]?.checked).length} of ${reqDocs(q).length} checked)</span></h3><button class="btn line sm" onclick="acceptAll('${a.id}')">Accept all remaining</button>${reqDocs(
+    q,
+  )
     .map(([k, l]) => {
-      const d = a.docs[k];
-      return `<div class="row" style="margin-bottom:.3rem"><div style="flex:1"><b>${esc(l)}</b> ${d ? BADGE(d.state) : ''} <span class="muted">${esc(d?.name || '')}</span> ${d ? `<button class="btn line sm" onclick="viewDoc('${a.id}','${k}')">View</button>` : ''}</div><select id="rr${k}" style="width:auto">${db.reasons.map((r) => `<option>${r}</option>`).join('')}</select><button class="btn line sm" onclick="rejDoc('${a.id}','${k}')">Reject document</button></div>`;
+      const d = a.docs[k],
+        pending = d && d.state === 'Rejected',
+        done = d && d.checked;
+      const actions = !d
+        ? ''
+        : done
+          ? `<button class="btn line sm" onclick="undoAccept('${a.id}','${k}')">Undo</button>`
+          : pending
+            ? '<span class="muted">Waiting for the customer to re-upload</span>'
+            : `<button class="btn gold sm" onclick="acceptDoc('${a.id}','${k}')">Accept</button><select id="rr${k}" aria-label="Rejection reason" style="width:auto">${db.reasons.map((r) => `<option>${r}</option>`).join('')}</select><button class="btn line sm" onclick="rejDoc('${a.id}','${k}')">Reject</button>`;
+      return `<div class="row" style="margin-bottom:.3rem${done ? ';opacity:.75' : ''}"><div style="flex:1"><b>${esc(l)}</b> ${d ? BADGE(d.state) : ''}${done ? ` <span class="b ok">Checked by ${esc(d.checkedBy)}</span>` : ''} <span class="muted">${esc(d?.name || '')}${d?.reason ? ', ' + esc(d.reason) : ''}</span> ${d ? `<button class="btn line sm" onclick="viewDoc('${a.id}','${k}')">View</button>` : ''}</div>${actions}</div>`;
     })
     .join('')}
 <h3>Decision</h3><button class="btn" onclick="decide('${a.id}','Approved')">Approve</button><button class="btn line" onclick="decide('${a.id}','On Hold')">Hold</button><button class="btn line" onclick="decide('${a.id}','Declined')">Decline</button></div>`;
@@ -61,7 +72,7 @@ function rejDoc(id, k) {
   log(`Rejected ${k} on ${id}: ${r}`);
   notify(a.owner, `A document on ${id} was rejected: ${r}. Re-upload only that file.`);
   save();
-  uwOpen = null;
+  toast('Document rejected. The application is On Hold and the customer was notified.');
   draw();
 }
 
@@ -71,6 +82,9 @@ function decide(id, s) {
     if (a.status === 'Exception') return toast('Confirm the driver records before approving.');
     if (Object.values(a.docs).some((d) => d.state !== 'Accepted'))
       return toast('A rejected document is still open.');
+    const todo = reqDocs(a.quote).filter(([k]) => !a.docs[k]?.checked).length;
+    if (todo)
+      return toast(`${todo} document(s) still need to be accepted. Use Accept on each one.`);
     db.policies.push({
       no: uid('POL'),
       app: id,
@@ -91,7 +105,9 @@ function decide(id, s) {
   log(`${s} ${id}`);
   notify(
     a.owner,
-    `Application ${id}: ${s}.` + (s === 'Approved' ? ' Pay to activate your policy.' : ''),
+    `Application ${id}: ${s}.` +
+      (s === 'Approved' ? ' Pay to activate your policy.' : '') +
+      (s === 'Declined' ? ` Reason: ${a.notes}` : ''),
   );
   save();
   uwOpen = null;
@@ -136,5 +152,45 @@ function rejectEx(id) {
   notify(a.owner, `Application ${id} was declined: ${r}`);
   save();
   uwOpen = null;
+  draw();
+}
+
+/* Per-document Accept: remembers that staff already checked this file, so it is not checked again.
+   A re-uploaded file is a new object, so it must be checked again; the other files stay accepted. */
+function acceptDoc(id, k) {
+  const d = db.apps.find((x) => x.id === id).docs[k];
+  d.checked = true;
+  d.checkedBy = me.name;
+  d.checkedAt = now();
+  log(`Accepted ${k} on ${id}`);
+  save();
+  draw();
+}
+
+function acceptAll(id) {
+  const a = db.apps.find((x) => x.id === id);
+  let n = 0;
+  reqDocs(a.quote).forEach(([k]) => {
+    const d = a.docs[k];
+    if (d && d.state === 'Accepted' && !d.checked) {
+      d.checked = true;
+      d.checkedBy = me.name;
+      d.checkedAt = now();
+      n++;
+    }
+  });
+  if (!n) return toast('Nothing left to accept. Rejected documents need a new upload.');
+  log(`Accepted ${n} documents on ${id}`);
+  save();
+  draw();
+}
+
+function undoAccept(id, k) {
+  const d = db.apps.find((x) => x.id === id).docs[k];
+  delete d.checked;
+  delete d.checkedBy;
+  delete d.checkedAt;
+  log(`Undid acceptance of ${k} on ${id}`);
+  save();
   draw();
 }
