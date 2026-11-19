@@ -72,6 +72,18 @@ async function boot() {
   db.notes ||= [];
 }
 
+/* Two tabs on one device: when the other tab saves, load its data and refresh this screen.
+   Screens with half-filled forms (and any focused field) are left alone so typing is not lost. */
+addEventListener('storage', (e) => {
+  if (e.key !== K) return;
+  if (e.newValue === null) return location.reload(); /* the other tab reset the data */
+  db = JSON.parse(e.newValue);
+  if (!me) return;
+  const busy = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+  if (busy || ['quote', 'payqr', 'paygw'].includes(tab)) return;
+  draw();
+});
+
 const save = () => localStorage.setItem(K, JSON.stringify(db));
 
 const log = (a) => {
