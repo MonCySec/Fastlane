@@ -94,7 +94,7 @@ async function createStaff() {
   if (!n || !/^\S+@\S+\.\S+$/.test(e) || p.length < 8)
     return toast('Enter a name, a valid email and a password of 8+ characters.');
   if (db.users.some((x) => x.email === e)) return toast('That email is already registered.');
-  db.users.push({ email: e, name: n, role: $('#sr').value, pw: await sha(p) });
+  db.users.push({ email: e, name: n, role: $('#sr').value, pw: await hashPw(p) });
   log(`Created ${$('#sr').value} account ${e}`);
   save();
   draw();

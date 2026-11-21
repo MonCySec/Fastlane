@@ -15,7 +15,10 @@ Web portal for Confidently Fast (motor vehicle insurance): quote, driver verific
 | `js/config.js` | Constants, claim stages, rejection reasons, menu per role | Add a role or menu tab |
 | `js/utils.js` | Formatting and small helpers | Rarely |
 | `js/state.js` | Who is logged in, current tab | Rarely |
-| `js/store.js` | **Data layer**: load, save, audit log, notifications, uploaded files | Connect a real backend |
+| `js/supabase-config.js` | Supabase URL and key (empty = data stays in this browser) | Turn on shared data |
+| `js/store.js` | **Data layer**: seed data, audit log, notifications, picks the backend | Data layer changes |
+| `js/store-local.js` | Backend 1: this browser only (default) | Rarely |
+| `js/store-supabase.js` | Backend 2: shared data in Supabase | Sync behavior |
 | `js/rules.js` | **Business rules**: LTO lookup, VIG, premium, loading, document checks | Change rates or rules |
 | `js/auth.js` | Register, login, logout | Auth changes |
 | `js/views/quote.js` | Quote screen | Quote changes |
@@ -37,8 +40,25 @@ Scripts are plain files loaded in the order listed in `index.html`. Later files 
 3. Register it in `VIEWS` in `js/main.js`.
 4. Add `['renewals', 'Renewals']` to the role's menu in `NAV` in `js/config.js`.
 
-## Connect a backend (Firebase or Supabase)
-All saving goes through `boot()` and `save()` in `js/store.js`. Records live in one in-memory object, `db`. Replace `boot()` to load it from the backend and `save()` to write it back, and the rest of the app does not change. This is enough for a shared demo. For real per-user security you would also split `db` into per-table calls.
+## Share data between computers (Supabase, optional)
+By default each browser keeps its own data. To let several computers share one live system:
+1. Create a free project at supabase.com.
+2. Open **SQL Editor**, paste all of `supabase-setup.sql`, and click **Run**.
+3. Open **Project Settings, API**. Copy the **Project URL** and the public key. Newer projects call it the **Publishable key** (starts with `sb_publishable_`); older ones call it the **anon public** key. Either works.
+4. Paste them into `js/supabase-config.js` and commit. (Never use the `service_role` key.)
+5. Open the site. The first computer to load it fills the database with the demo accounts. Every other computer then shares the data and sees changes within a few seconds.
+
+To go back to browser-only mode, empty the two values again.
+
+### Security (what is and is not protected)
+Protected:
+- Passwords are stored as salted PBKDF2-SHA256 hashes (150,000 rounds, a unique salt per account). Accounts from the first version are upgraded the next time their owner logs in.
+- The database only accepts the record types the app uses, with a size cap per record. The public key cannot delete rows or files, and the document bucket accepts only JPG, PNG and PDF files up to 5 MB.
+
+Not protected (prototype limits):
+- Anyone who has the site's public key can still read and change records, including the stored password hashes and uploaded documents. Role-based access is enforced in the screens only, not in the database (see NFR-010 in the system proposal).
+- Real per-user security would need Supabase Auth and per-role database rules, and moving the LTO lookup and pricing to the server.
+- Use fictitious data only, and never reuse a real password.
 
 ## Known limits
 Rates and loadings are illustrative. Renewals, amendments, cancellation, the blacklist check and the post-claim survey are not built (the "Should" items in Section 4 of the system proposal). Internet is needed for the fonts, the QR code and the PDF library.

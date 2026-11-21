@@ -131,17 +131,6 @@ function paydoneV() {
   );
 }
 
-/* If the payment is completed in another tab of this browser, move this page on automatically */
-addEventListener('storage', (e) => {
-  if (e.key !== K || tab !== 'payqr' || !me || !e.newValue) return;
-  db = JSON.parse(e.newValue);
-  const s = (db.sessions || []).find((x) => x.sid === paySid);
-  if (s?.status === 'Paid') {
-    tab = 'paydone';
-    draw();
-  }
-});
-
 /* Opening the QR link on another device or tab lands on the gateway page without a login */
 function standalone() {
   try {

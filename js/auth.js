@@ -16,8 +16,12 @@ function resetIdle() {
 
 async function login(e, p) {
   const u = db.users.find((x) => x.email === e.trim().toLowerCase());
-  if (!u || u.pw !== (await sha(p))) return toast('Email or password is incorrect.');
+  if (!u || !(await checkPw(p, u.pw))) return toast('Email or password is incorrect.');
   if (u.active === false) return toast('This account is deactivated. Ask an administrator.');
+  if (isLegacyPw(u.pw)) {
+    u.pw = await hashPw(p); /* upgrade an old unsalted hash */
+    save();
+  }
   me = u;
   resetIdle();
   tab = NAV[u.role][0][0];
@@ -33,7 +37,7 @@ async function register() {
   if (!n || !/^\S+@\S+\.\S+$/.test(e) || p.length < 8)
     return toast('Enter a name, a valid email and a password of 8+ characters.');
   if (db.users.some((x) => x.email === e)) return toast('That email is already registered.');
-  db.users.push({ email: e, name: n, role: 'Customer', pw: await sha(p) });
+  db.users.push({ email: e, name: n, role: 'Customer', pw: await hashPw(p) });
   save();
   await login(e, p);
 }

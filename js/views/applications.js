@@ -87,5 +87,10 @@ async function viewDoc(id, k) {
 
 function notifsV() {
   const L = db.notifs.filter((n) => n.to === me.email);
-  return `<div class="card"><h2>Notifications</h2>${L.map((n) => `<p><span class="muted">${when(n.t)}</span><br>${esc(n.m)}</p>`).join('') || '<p>Nothing yet.</p>'}</div>`;
+  const html = `<div class="card"><h2>Notifications</h2>${L.map((n) => `<p>${n.read ? '' : '<span class="b warn">New</span> '}<span class="muted">${when(n.t)}</span><br>${esc(n.m)}</p>`).join('') || '<p>Nothing yet.</p>'}</div>`;
+  if (L.some((n) => !n.read)) {
+    L.forEach((n) => (n.read = true));
+    save();
+  }
+  return html;
 }

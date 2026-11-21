@@ -12,11 +12,16 @@ function draw() {
       `<header><div class="brand">FastLane<small>Confidently Fast. Go further. Drive confidently.</small></div></header><main>${loginV()}</main>`;
     return;
   }
+  const body = VIEWS[tab]();
+  const unread = db.notifs.filter((n) => n.to === me.email && !n.read).length;
   const nb = NAV[me.role]
-    .map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="go('${k}')">${l}</button>`)
+    .map(
+      ([k, l]) =>
+        `<button class="${tab === k ? 'on' : ''}" onclick="go('${k}')">${l}${k === 'notifs' && unread ? ` <span class="b bad">${unread}</span>` : ''}</button>`,
+    )
     .join('');
   $('#root').innerHTML =
-    `<header><div class="brand">FastLane<small>${esc(me.name)}, ${me.role}</small></div><nav>${nb}<button onclick="logout()">Log out</button></nav></header><main>${VIEWS[tab]()}</main>`;
+    `<header><div class="brand">FastLane<small>${esc(me.name)}, ${me.role}</small></div><nav>${nb}<button onclick="logout()">Log out</button></nav></header><main>${body}</main>`;
 }
 
 function loginV() {

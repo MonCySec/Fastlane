@@ -80,7 +80,7 @@ function repV() {
     ['Open claims', db.claims.filter((c) => c.stage < 6).length],
     ['Overdue claims', db.claims.filter(claimLate).length],
   ];
-  return `<div class="card"><h2>Management report</h2><table>${rows.map((r) => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join('')}</table><button class="btn" onclick="csv()">Export CSV</button><button class="btn line" onclick="if(confirm('Delete all sample data and reset?')){localStorage.removeItem(K);indexedDB.deleteDatabase('fastlane_files');location.reload()}">Reset sample data</button></div>`;
+  return `<div class="card"><h2>Management report</h2><table>${rows.map((r) => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join('')}</table><button class="btn" onclick="csv()">Export CSV</button><button class="btn line" onclick="if(confirm('Delete all sample data and reset?'))resetAll()">Reset sample data</button></div>`;
 }
 
 function csv() {
